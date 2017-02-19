@@ -31,13 +31,10 @@ mainLoop sock chan msgNum = do
 runConn :: (Socket, SockAddr) -> Chan Msg -> Int -> IO()
 runConn (sock, _) chan msgNum = do
   let broadcast msg = writeChan chan (msgNum, msg)
-  putStrLn "connection recieved!"
   hdl <- socketToHandle sock ReadWriteMode
   hSetBuffering hdl NoBuffering
-  hPutStrLn hdl "Hi, what's your name?"
-  name <- liftM init (hGetLine hdl)
-  broadcast ("-->" ++ name ++ " entered chat.")
-  hPutStrLn hdl ("Welcome, " ++ name ++ "!")
+
+  name <- liftM init (hGetLine hdl) -- get name of client
 
   commLine <- dupChan chan
 
@@ -48,13 +45,13 @@ runConn (sock, _) chan msgNum = do
 
   handle (\(SomeException _) -> return()) $ fix $ \loop -> do
     line <- liftM init (hGetLine hdl)
-    case line of
+    case line of -- pattern match the line
       -- If an exception is caught, send a message and break the loop
-      "quit" -> hPutStrLn hdl "Bye!"
+      "quit" -> hPutStrLn hdl "Bye"
       -- else, continue looping
       _      -> broadcast (name ++ ": " ++ line) >> loop
 
   killThread reader
-  broadcast ("<-- " ++ name ++ " left.")
+  broadcast (name ++ ": exited")
   hClose hdl
   hClose hdl
